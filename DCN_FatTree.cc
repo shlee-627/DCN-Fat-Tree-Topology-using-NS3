@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
 	Time::SetResolution (Time::NS);
 	LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
 	LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
+	LogComponentEnable ("TcpSocketBase", LOG_LEVEL_INFO);
 	
 	Config::SetDefault("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(ECMProuting));
 	
@@ -43,13 +44,13 @@ int main(int argc, char *argv[])
 	NodeToSW.SetChannelAttribute ("Delay", StringValue ("200ns"));
 	
 	PointToPointHelper SWToSW_50ns;
-	SWToSW_50ns.SetDeviceAttribute ("DataRate", StringValue ("40Gbps"));
+	SWToSW_50ns.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
 	SWToSW_50ns.SetChannelAttribute ("Delay", StringValue ("50ns"));
 	SWToSW_50ns.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(Corequeuesize)); 
 	
 	PointToPointHelper SWToSW_70ns;
-	SWToSW_70ns.SetDeviceAttribute ("DataRate", StringValue ("40Gbps"));
-	SWToSW_70ns.SetChannelAttribute ("Delay", StringValue ("70ns"));
+	SWToSW_70ns.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
+	SWToSW_70ns.SetChannelAttribute ("Delay", StringValue ("50ns"));
 	SWToSW_70ns.SetQueue("ns3::DropTailQueue", "MaxPackets", UintegerValue(Leafqueuesize)); 
 	
 	NodeContainer pod0,pod1,pod2,pod3,core;
@@ -110,13 +111,13 @@ int main(int argc, char *argv[])
 	
 
 	//Core router connections
+	SWToSW_50ns.SetDeviceAttribute ("DataRate", StringValue ("40Gbps"));
 	NetDeviceContainer core_dev,core_dev2,core_dev3,core_dev4,core_dev5,core_dev6,core_dev7,core_dev8;
 	NetDeviceContainer core_dev9,core_dev10,core_dev11,core_dev12,core_dev13,core_dev14,core_dev15,core_dev16;
 	core_dev = SWToSW_50ns.Install( pod0.Get(6), core.Get(0));
 	core_dev2 = SWToSW_50ns.Install( pod1.Get(6), core.Get(0));
 	core_dev3 = SWToSW_50ns.Install( pod2.Get(6), core.Get(0));
 	core_dev4 = SWToSW_50ns.Install( pod3.Get(6), core.Get(0));
-	
 	core_dev5 = SWToSW_50ns.Install( pod0.Get(6), core.Get(1));
 	core_dev6 = SWToSW_50ns.Install( pod1.Get(6), core.Get(1));
 	core_dev7 = SWToSW_50ns.Install( pod2.Get(6), core.Get(1));
@@ -290,7 +291,7 @@ int main(int argc, char *argv[])
 	//Routing tables
 	Ipv4GlobalRoutingHelper:: PopulateRoutingTables();
 	//Applications
-
+/*
 	UdpEchoServerHelper echoServer (9);
 	ApplicationContainer serverApps,serverApps2,serverApps3,serverApps4;
 	serverApps = echoServer.Install (pod0.Get (0));
@@ -341,74 +342,140 @@ int main(int argc, char *argv[])
 	clientApps3.Start (Seconds (1.5));
 	clientApps3.Stop (Seconds (2.5));
 	clientApps4.Start (Seconds (1.5));
-	clientApps4.Stop (Seconds (2.5));
-	
+	clientApps4.Stop (Seconds (2.5));#
+*/	
 
 	//tcp flow
 	int tcpSegmentSize = 1024; 
 	uint32_t maxBytes = 1000000; // 0 means "unlimited"
 	Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcpSegmentSize));
-	Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (0)); 
-	uint16_t port = 80,port2 = 90; 
+	Config::SetDefault ("ns3::TcpSocket::DelAckCount", UintegerValue (0));
+	Config::SetDefault ("ns3::TcpL4Protocol::SocketType", StringValue("ns3::TcpNewReno")); 
+	uint16_t port = 80,port2 = 90;
+
+	// Hsherlcok
+        uint16_t port3 = 81, port4 = 91, port5 = 101;
+	Address sinkAaddrRev(InetSocketAddress (Ipv4Address::GetAny(), port3));
+	Address sinkAaddrRev2(InetSocketAddress (Ipv4Address::GetAny(), port4));
+	Address sinkAaddrRev3(InetSocketAddress (Ipv4Address::GetAny(), port5));
+
 	Address sinkAaddr(InetSocketAddress (Ipv4Address::GetAny (), port)); 
 	Address sinkAaddr2(InetSocketAddress (Ipv4Address::GetAny (), port2)); 
 	Address sinkAaddr3(InetSocketAddress (Ipv4Address::GetAny (), port)); 
 	Address sinkAaddr4(InetSocketAddress (Ipv4Address::GetAny (), port2)); 
+
 	PacketSinkHelper sink ("ns3::TcpSocketFactory", sinkAaddr); 
 	PacketSinkHelper sink2 ("ns3::TcpSocketFactory", sinkAaddr2); 		
 	PacketSinkHelper sink3 ("ns3::TcpSocketFactory", sinkAaddr3); 
-	PacketSinkHelper sink4 ("ns3::TcpSocketFactory", sinkAaddr4); 		
+	PacketSinkHelper sink4 ("ns3::TcpSocketFactory", sinkAaddr4); 	
+
+	// Hsherlcok
+ 	PacketSinkHelper sinkRev ("ns3::TcpSocketFactory", sinkAaddrRev);
+ 	PacketSinkHelper sinkRev2 ("ns3::TcpSocketFactory", sinkAaddrRev2);
+ 	PacketSinkHelper sinkRev3 ("ns3::TcpSocketFactory", sinkAaddrRev3);
+
+	ApplicationContainer sinkAppRev = sinkRev.Install (pod2.Get(1));		// 30.0.1.x	
+	/*ApplicationContainer sinkAppRev2 = sinkRev2.Install (pod2.Get(0));		// 30.0.0.x
+	ApplicationContainer sinkAppRev3 = sinkRev3.Install (pod3.Get(1));		// 40.0.1.x*/
+	
 	ApplicationContainer sinkApp = sink.Install (pod0.Get(2)); 
 	ApplicationContainer sinkApp2 = sink2.Install (pod0.Get(3)); 
-	ApplicationContainer sinkApp3 = sink3.Install (pod1.Get(0)); 
-	ApplicationContainer sinkApp4 = sink4.Install (pod1.Get(1)); 
+	//ApplicationContainer sinkApp3 = sink3.Install (pod1.Get(0)); 
+	//ApplicationContainer sinkApp4 = sink4.Install (pod1.Get(1)); 
 	sinkApp.Start (Seconds (1)); 
 	sinkApp.Stop (Seconds (2.5));
 	sinkApp2.Start (Seconds (1)); 
 	sinkApp2.Stop (Seconds (2.5));
-	sinkApp3.Start (Seconds (1)); 
+	/*sinkApp3.Start (Seconds (1)); 
 	sinkApp3.Stop (Seconds (2.5));
 	sinkApp4.Start (Seconds (1)); 
-	sinkApp4.Stop (Seconds (2.5));
+	sinkApp4.Stop (Seconds (2.5));*/
+
+	// Hsherlcok
+	sinkAppRev.Start (Seconds (1));
+	sinkAppRev.Stop (Seconds (2.5));
+	
+	/*sinkAppRev2.Start (Seconds (1));
+	sinkAppRev2.Stop (Seconds (2.5));
+	
+	sinkAppRev3.Start (Seconds (1));
+	sinkAppRev3.Stop (Seconds (2.5));*/
 	
 	Address sinkAddr(InetSocketAddress(pod0_Iface3.GetAddress (0), port)); 
 	Address sinkAddr2(InetSocketAddress(pod0_Iface4.GetAddress (0), port2)); 
- 	Address sinkAddr3(InetSocketAddress(pod1_Iface.GetAddress (0), port)); 
-	Address sinkAddr4(InetSocketAddress(pod1_Iface2.GetAddress (0), port2)); 
+ 	//Address sinkAddr3(InetSocketAddress(pod1_Iface.GetAddress (0), port)); 
+	//Address sinkAddr4(InetSocketAddress(pod1_Iface2.GetAddress (0), port2)); 
  
+	// Hserlcok
+	Address sinkAddrRev (InetSocketAddress (pod2_Iface2.GetAddress (0), port3));		// 30.0.1.x
+	Address sinkAddrRev2 (InetSocketAddress (pod2_Iface.GetAddress (0), port4));		// 30.0.0.x
+	Address sinkAddrRev3 (InetSocketAddress (pod3_Iface2.GetAddress (0), port5));		// 40.0.1.x
+
 	BulkSendHelper sourceAhelper ("ns3::TcpSocketFactory", sinkAddr);
 	BulkSendHelper sourceAhelper2 ("ns3::TcpSocketFactory", sinkAddr2); 
-	BulkSendHelper sourceAhelper3 ("ns3::TcpSocketFactory", sinkAddr3);
-	BulkSendHelper sourceAhelper4 ("ns3::TcpSocketFactory", sinkAddr4); 
+	//BulkSendHelper sourceAhelper3 ("ns3::TcpSocketFactory", sinkAddr3);
+	//BulkSendHelper sourceAhelper4 ("ns3::TcpSocketFactory", sinkAddr4); 
+
+	// Hsherlcok
+	BulkSendHelper sourceAhelperRev ("ns3::TcpSocketFactory", sinkAddrRev);
+	BulkSendHelper sourceAhelperRev2 ("ns3::TcpSocketFactory", sinkAddrRev2);
+	BulkSendHelper sourceAhelperRev3 ("ns3::TcpSocketFactory", sinkAddrRev3);
+
 	sourceAhelper.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
 	sourceAhelper.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize)); 
 	sourceAhelper2.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
 	sourceAhelper2.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize)); 
-	sourceAhelper3.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
+	/*sourceAhelper3.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
 	sourceAhelper3.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize)); 
 	sourceAhelper4.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
-	sourceAhelper4.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize)); 
+	sourceAhelper4.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize));*/
+
+	// Hsherlcok
+	sourceAhelperRev.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
+	sourceAhelperRev.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize)); 
+
+	sourceAhelperRev2.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
+	sourceAhelperRev2.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize)); 
+	
+	sourceAhelperRev3.SetAttribute ("MaxBytes", UintegerValue (maxBytes)); 
+	sourceAhelperRev3.SetAttribute ("SendSize", UintegerValue (tcpSegmentSize)); 
+
 	ApplicationContainer sourceAppsA = sourceAhelper.Install (pod3.Get (0)); 
 	ApplicationContainer sourceAppsA2 = sourceAhelper2.Install (pod3.Get (3)); 
-	ApplicationContainer sourceAppsA3 = sourceAhelper3.Install (pod2.Get (2)); 
-	ApplicationContainer sourceAppsA4 = sourceAhelper4.Install (pod2.Get (3)); 
+	//ApplicationContainer sourceAppsA3 = sourceAhelper3.Install (pod2.Get (2)); 
+	//ApplicationContainer sourceAppsA4 = sourceAhelper4.Install (pod2.Get (3));
+
+	// Hsherlcok		--> Same Node 40.0.2.x (pod3_Iface3)
+	ApplicationContainer sourceAppsARev = sourceAhelperRev.Install (pod3.Get(2));
+	/*ApplicationContainer sourceAppsARev2 = sourceAhelperRev2.Install (pod3.Get(2));
+	ApplicationContainer sourceAppsARev3 = sourceAhelperRev3.Install (pod3.Get(2));*/
+	 
 	sourceAppsA.Start (Seconds (1.5));
 	sourceAppsA.Stop (Seconds (2.5));
 	sourceAppsA2.Start (Seconds (1.5));
 	sourceAppsA2.Stop (Seconds (2.5));
-	sourceAppsA3.Start (Seconds (1.5));
+	/*sourceAppsA3.Start (Seconds (1.5));
 	sourceAppsA3.Stop (Seconds (2.5));
 	sourceAppsA4.Start (Seconds (1.5));
-	sourceAppsA4.Stop (Seconds (2.5));
+	sourceAppsA4.Stop (Seconds (2.5));*/
+
+	// Hsherlcok
+	sourceAppsARev.Start (Seconds (1.5));
+	sourceAppsARev.Stop (Seconds (2.5));
+	
+	/*sourceAppsARev2.Start (Seconds (1.5));
+	sourceAppsARev2.Stop (Seconds (2.5));
+
+	sourceAppsARev3.Start (Seconds (1.5));
+	sourceAppsARev3.Stop (Seconds (2.5));*/
 	
 	//NodeToSW.EnablePcapAll ("FatTree");
 	NodeToSW.EnablePcapAll("DCN_FatTree_Pcap");
-	
 		
 	//Flow Statstics
 	FlowMonitorHelper flowmonHelper;
 	flowmonHelper.InstallAll();
-	
+/*	
 	AnimationInterface anim ("animation.xml");
 	anim.SetConstantPosition(pod0.Get(0),1.0, 20.0);
 	anim.SetConstantPosition(pod0.Get(1),2.0, 20.0);
@@ -451,7 +518,7 @@ int main(int argc, char *argv[])
 	anim.SetConstantPosition(core.Get(1),7.5, 7.0);
 	anim.SetConstantPosition(core.Get(2),12.5, 7.0);
 	anim.SetConstantPosition(core.Get(3),17.5, 7.0);
-			
+*/			
 	Simulator::Stop (Seconds (2.0));
 	Simulator::Run ();
   	NS_LOG_INFO ("Running the Simulation.");
